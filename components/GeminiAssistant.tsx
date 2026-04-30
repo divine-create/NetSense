@@ -5,7 +5,7 @@ import { useState } from 'react';
 export default function GeminiAssistant() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([
-    { role: 'ai', content: "Hello! I'm your NetSense Assistant powered by Gemini. Ask me anything about Lagos network coverage." }
+    { role: 'ai', content: "Hello! I'm your NetSense Assistant. Ask me anything about Lagos network coverage." }
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,7 +45,6 @@ export default function GeminiAssistant() {
         <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs">AI</div>
         <div>
           <h3 className="text-sm font-bold text-gray-800">NetSense Assistant</h3>
-          <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest">Powered by Gemini</p>
         </div>
       </div>
 

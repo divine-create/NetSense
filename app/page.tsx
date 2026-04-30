@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import SignalReportForm from '@/components/SignalReportForm';
 import GeminiAssistant from '@/components/GeminiAssistant';
@@ -10,6 +11,7 @@ const MapView = dynamic(() => import('@/components/MapView'), {
 });
 
 export default function Home() {
+  const [activeNetwork, setActiveNetwork] = useState('All');
   return (
     <main className="min-h-screen bg-[#f8fafc]">
       {/* Header */}
@@ -62,7 +64,8 @@ export default function Home() {
                 {['All', 'MTN', 'Airtel', 'Glo', '9mobile'].map((net) => (
                   <button 
                     key={net} 
-                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${net === 'All' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                    onClick={() => setActiveNetwork(net)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeNetwork === net ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
                   >
                     {net}
                   </button>
@@ -70,7 +73,7 @@ export default function Home() {
               </div>
             </div>
             <div className="relative">
-              <MapView />
+              <MapView networkFilter={activeNetwork} />
             </div>
           </section>
         </div>

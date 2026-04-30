@@ -7,17 +7,9 @@ import dynamic from 'next/dynamic';
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
 
 export default function OperatorPortal() {
-  const [incidents, setIncidents] = useState<any[]>([]);
+  const [incidents, setIncidents] = useState<{ id: string; zone: string; severity: string; description: string; created_at: string; resolved_at: string | null }[]>([]);
   const [stats, setStats] = useState({ active: 0, critical: 0, predicted: 0 });
-
-  useEffect(() => {
-    fetchOperatorData();
-    const subscription = supabase
-      .channel('operator_sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'grid_cells' }, () => fetchOperatorData())
-      .subscribe();
-    return () => { subscription.unsubscribe(); };
-  }, []);
+  const [aiSummary, setAiSummary] = useState<string>("Analyzing network state...");
 
   const fetchOperatorData = async () => {
     const { data: cells } = await supabase.from('grid_cells').select('*');
@@ -27,8 +19,26 @@ export default function OperatorPortal() {
       setStats({ active: cells.length, critical, predicted });
     }
     const { data: inc } = await supabase.from('incidents').select('*').is('resolved_at', null);
-    if (inc) setIncidents(inc);
+    if (inc) setIncidents(inc as any);
+
+    // Fetch AI Summary
+    try {
+      const res = await fetch('/api/ai-summary');
+      const data = await res.json();
+      if (data.summary) setAiSummary(data.summary);
+    } catch (e) {
+      console.error('Failed to fetch AI summary:', e);
+    }
   };
+
+  useEffect(() => {
+    fetchOperatorData();
+    const subscription = supabase
+      .channel('operator_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'grid_cells' }, () => fetchOperatorData())
+      .subscribe();
+    return () => { subscription.unsubscribe(); };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-200 p-8">
@@ -101,7 +111,7 @@ export default function OperatorPortal() {
             <div className="relative z-10">
               <h3 className="text-xs font-black text-blue-200 uppercase tracking-widest mb-4">AI Infrastructure Summary</h3>
               <p className="text-sm font-medium leading-relaxed italic">
-                "Multiple users reporting packet loss in Ikeja. ML model predicts a 72% chance of localized outage by 18:30 due to backhaul congestion. Recommend scaling cloud capacity for MTN cluster."
+                &quot;{aiSummary}&quot;
               </p>
               <button className="mt-6 w-full py-3 bg-white/10 hover:bg-white/20 backdrop-blur-xl rounded-xl text-xs font-black uppercase tracking-widest transition-all border border-white/10">
                 Generate Full NOC Report

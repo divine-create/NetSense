@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, CircleMarker, Popup, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import L from 'leaflet';
 import { supabase } from '@/lib/supabase';
 
@@ -15,26 +15,45 @@ interface GridCell {
   network: string;
 }
 
-export default function MapView() {
+export default function MapView({ networkFilter = 'All' }: { networkFilter?: string }) {
   const [cells, setCells] = useState<GridCell[]>([]);
   const lagosCenter: [number, number] = [6.5244, 3.3792];
 
+  const fetchCells = useCallback(async () => {
+    // Fetching from our PostGIS-powered view that extracts centroids
+    let query = supabase.from('grid_cells_view').select('*');
+    
+    if (networkFilter !== 'All') {
+      query = query.eq('network', networkFilter);
+    }
+
+    const { data, error } = await query;
+    if (data) {
+      setCells(data as any);
+    }
+    if (error) {
+      console.error('Error fetching grid cells:', error);
+    }
+  }, [networkFilter]);
+
+  useEffect(() => {
+    fetchCells();
+  }, [fetchCells]);
+
   useEffect(() => {
     // Fix Leaflet icon issue
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    const DefaultIcon = L.Icon.Default as any;
+    delete DefaultIcon.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
       iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
     });
 
-    // Initial Fetch
-    fetchCells();
-
     // Subscribe to real-time updates
     const subscription = supabase
       .channel('grid_cells_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'grid_cells' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'grid_cells' }, () => {
         fetchCells();
       })
       .subscribe();
@@ -42,23 +61,7 @@ export default function MapView() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-
-  const fetchCells = async () => {
-    // In a real app, we'd use a PostGIS RPC to get lat/lng from the bounds polygon
-    // For the demo, we'll select everything. Note: in the actual DB these are polygons, 
-    // so we'd need to extract the centroid.
-    const { data, error } = await supabase.from('grid_cells').select('*');
-    if (data) {
-      // Mocking lat/lng extraction for the demo visualization
-      const processed = data.map(d => ({
-        ...d,
-        lat: 6.5244 + (Math.random() - 0.5) * 0.1, // Fallback for demo
-        lng: 3.3792 + (Math.random() - 0.5) * 0.1,
-      }));
-      setCells(processed);
-    }
-  };
+  }, [fetchCells]);
 
   const getScoreColor = (score: number) => {
     if (score > 0.8) return '#22c55e'; // Vibrant Green
